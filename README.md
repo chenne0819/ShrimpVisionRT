@@ -87,7 +87,7 @@ The Deployment. This is the main execution engine that runs on video streams.
 
     - Tracking: Norfair + SIFT ReID.
 
-    - Estimation: Applies the regression models from Step 2 (using image-based pred_length and pred_width.
+    - Estimation: Applies the regression models from Step 2 (using image-based pred_length and pred_width).
     
     - Water clarify: Features logistic_water.py to filter out turbid water, saving computational resources and storage.
 
