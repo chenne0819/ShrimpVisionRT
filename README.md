@@ -93,6 +93,19 @@ The Deployment. This is the main execution engine that runs on video streams.
 
 ---
 
+## 📊 Experimental Results
+Our system has been validated in a real-world aquaculture environment with Penaeus monodon. Key performance metrics include:
+
+- Weight Estimation: The system delivers high-precision biometrics with a weight prediction MAPE of 11.77%. Notably, the discrepancy between our automated estimation and manual ground truth is ≤ 2.2%, demonstrating its capability to replace labor-intensive manual sampling.
+
+- Operational Efficiency:
+
+      - Storage Optimization: By filtering out turbid and empty frames, the system reduced video storage requirements by 69.02% in a month-long deployment.
+
+      - Scalability: The pipeline is highly optimized, maintaining a low average GPU utilization of 14.84% (tested on RTX A6000), leaving significant headroom for multi-camera expansion.
+
+---
+
 ## 🔗 Acknowledgments & References
 Our codebase is built upon the YOLOv5-OBB repository and the Norfair tracking library.
 
