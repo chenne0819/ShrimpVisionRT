@@ -96,7 +96,7 @@ The Deployment. This is the main execution engine that runs on video streams.
 ## 🔗 Acknowledgments & References
 Our codebase is built upon the YOLOv5-OBB repository and the Norfair tracking library.
 
-The core integration is implemented within 'shrimp_OBB/detect_norfair_optimize.py', where we added Norfair tracking with SIFT Re-Identification (ReID) and embedded the regression logic to predict the actual length, width, and weight of the shrimp in './utils/plots.py'.
+The core integration is implemented within `shrimp_OBB/detect_norfair_optimize.py`, where we added Norfair tracking with SIFT Re-Identification (ReID) and embedded the regression logic to predict the actual length, width, and weight of the shrimp in `shrimp_OBB/utils/plots.py`.
 
 Researchers interested in the underlying methodology can utilize or modify to the code provided in this repository. 
 
