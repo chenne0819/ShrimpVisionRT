@@ -113,7 +113,7 @@ The core integration is implemented within `shrimp_OBB/detect_norfair_optimize.p
 
 Researchers interested in the underlying methodology can utilize or modify to the code provided in this repository. 
 
-Full research paper will be updated once it is accepted.
+Full research paper: https://link.springer.com/article/10.1007/s11227-026-08222-0
 
 ---
 
