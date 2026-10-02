@@ -1,4 +1,5 @@
 from PIL import Image
+from pathlib import Path
 import numpy as np
 import torch
 import torch.nn as nn
@@ -39,7 +40,7 @@ def predict_image_class(image):
     input_dim = 28 * 28
     num_classes = 2
     class_names = ['turbid', 'clear']
-    model_path = './Model/logistic_regression_model.pth'  # Path to the trained model
+    model_path = Path(__file__).resolve().parent / 'Model' / 'logistic_regression_model.pth'
 
     # Image preprocessing
     transform = transforms.Compose([

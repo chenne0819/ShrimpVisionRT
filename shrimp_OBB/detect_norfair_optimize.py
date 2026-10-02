@@ -26,7 +26,6 @@ FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
-ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 from models.common import DetectMultiBackend
 from utils.datasets import IMG_FORMATS, VID_FORMATS, LoadImages, LoadStreams
@@ -49,7 +48,7 @@ from ultralytics import YOLO
 from logistic_water import predict_image_class
 
 # Load YOLOv8 model globally for width detection
-global_yolo_model = YOLO('./Model/seg_shrimp/weights/best.pt')
+global_yolo_model = YOLO(str(ROOT / 'Model/seg_shrimp/weights/best.pt'))
 
 @torch.no_grad()
 def width_detect_batch(crop_imgs, model=global_yolo_model):
@@ -190,8 +189,8 @@ def calculate_embedding(cut: np.ndarray) -> Optional[np.ndarray]:
         return None
 
 @torch.no_grad()
-def run(weights=ROOT / 'yolov5s.pt',
-        source=ROOT / 'data/images',
+def run(weights=ROOT / 'runs/train/exp_OBB/weights/best.pt',
+        source=ROOT / 'shrimp_video/2024-01-01-00_11_15.mp4',
         imgsz=(864, 864),  # Must be stride 32 multiple
         conf_thres=0.25,
         iou_thres=0.45,
@@ -292,9 +291,7 @@ def run(weights=ROOT / 'yolov5s.pt',
             
             if water_quality == 'turbid':
                 # Create turbid_water folder and move(or delete) video
-                turbid_folder = "./turbid_water"
-                curr_dir = os.getcwd()
-                turbid_folder_path = os.path.join(curr_dir, turbid_folder)
+                turbid_folder_path = ROOT / 'turbid_water'
                 if not os.path.exists(turbid_folder_path):
                     os.makedirs(turbid_folder_path)
                 
@@ -333,7 +330,7 @@ def run(weights=ROOT / 'yolov5s.pt',
             count = len(pred_poly)
             seen += 1
             p, im0, frame = path, im0s.copy(), getattr(dataset, 'frame', 0)
-            store_path = path.split('/')[-1].split('.')[0]
+            store_path = Path(path).stem
             p = Path(p)
             save_path = str(save_dir / p.name)
             txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')
@@ -459,7 +456,7 @@ def run(weights=ROOT / 'yolov5s.pt',
     
     # Save video with only frames containing shrimp
     if frames_with_shrimp:
-        shrimp_only_path = "./shrimp_only_frames"
+        shrimp_only_path = ROOT / 'shrimp_only_frames'
         os.makedirs(shrimp_only_path, exist_ok=True)
         
         source_path = Path(source)
@@ -530,10 +527,11 @@ def run(weights=ROOT / 'yolov5s.pt',
     # Save CSV only if there are detections
     if save_csv:    
     
-        os.makedirs("./csv_data", exist_ok=True)
+        csv_dir = ROOT / 'csv_data'
+        csv_dir.mkdir(parents=True, exist_ok=True)
         
         # CSV output path
-        csv_file_path = f"./csv_data/{store_path_name}.csv"
+        csv_file_path = csv_dir / f"{store_path_name}.csv"
             
         # Database Connection
         # import pymysql
@@ -598,8 +596,8 @@ def run(weights=ROOT / 'yolov5s.pt',
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / './runs/train/exp_OBB/weights/best.pt', help='model path(s)')
-    parser.add_argument('--source', type=str, default=r'video_path', help='file/dir/URL/glob, 0 for webcam')
+    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'runs/train/exp_OBB/weights/best.pt', help='model path(s)')
+    parser.add_argument('--source', type=str, default=ROOT / 'shrimp_video/2024-01-01-00_11_15.mp4', help='file/dir/URL/glob, 0 for webcam')
     parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[864, 864], help='inference size h,w')
     parser.add_argument('--conf-thres', type=float, default=0.6, help='confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.45, help='NMS IoU threshold')
@@ -615,7 +613,7 @@ def parse_opt():
     parser.add_argument('--augment', action='store_true', default=False, help='augmented inference')
     parser.add_argument('--visualize', nargs='*', help='visualize features')  # Changed to nargs='*' to handle None or list
     parser.add_argument('--update', action='store_true', help='update all models')
-    parser.add_argument('--project', default='runs/detect', help='save results to project/name')
+    parser.add_argument('--project', default=ROOT / 'runs/detect', help='save results to project/name')
     parser.add_argument('--name', default='exp', help='save results to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--line-thickness', default=2, type=int, help='bounding box thickness (pixels)')

@@ -46,11 +46,12 @@ The pipeline processes video feeds through the following stages:
 We provide sample videos (one clear, one turbid) in `shrimp_video/` for testing the water quality filter and detection capabilities.
 
 ```text
-Shrimp_OBB
+shrimp_OBB
  ├── shrimp_video/                              # Sample Videos
  │      ├── 2024-01-01-00_11_15.mp4             # Clear water sample (For execution)
  │      └── 2024-01-08-06_53_42.mp4             # Turbid water sample (For testing filter)
- ├── runs/train/exp_OBB/weights/best.pt"        # Shrimp OBB model
+ ├── runs/train/exp_OBB/weights/best.pt         # Shrimp OBB model
+ ├── data/bottom_shrimp.example.yaml           # Dataset configuration example (not study data)
  ├── Model/
  │    ├── final_linear_model_length.pkl         # Length Regression Model
  │    ├── logistic_regression_model.pth         # Water Quality Model
@@ -82,24 +83,32 @@ Required Packages:
 ---
 
 ## 🚀 Usage
-This project have provided all necessary pre-trained models (YOLOv5-OBB, YOLOv8-Seg, and Regression models). You can run the inference directly on the provided sample video.
+The repository includes YOLOv5-OBB and YOLOv8-Seg weights and sample videos. Full weight estimation additionally requires the following files in `shrimp_OBB/Model/`; these files are currently **not included** in the repository:
+
+- `final_linear_model_length.pkl`
+- `final_linear_model_width.pkl`
+- `polynomial_regression_model_degree3.pkl`
+- `multi_feature_model.pkl`
+- `logistic_regression_model.pth`
+
+Obtain the matching trained files before running the full pipeline. Fixing a file path does not supply a missing model. For regression training, the referenced measurement spreadsheets, including `shrimp_len_wid_wei.xlsx`, must also be supplied separately.
 
 1. Enter the Directory
 ```bash
-    cd Shrimp_OBB
+    cd shrimp_OBB
 ```
 
 2. Execute Detection on Clear Video/Turbid Video
 Run the following command to test the system on the provided clear video sample:
 ```Bash
-    python detect_norfair_optimize.py --weights ./runs/train/exp_OBB/weights/best.pt --source ./video/sample.mp4    
+    python detect_norfair_optimize.py
 ```
 
 Key Arguments  
 
 - --weights: Path to the YOLOv5-OBB model weights.
 
-- --source: Input source. Can be a file path, img/video path, or 0 for webcam.
+- --source: Input source. The default is `shrimp_video/2024-01-01-00_11_15.mp4` under `shrimp_OBB/`. Explicit sources are passed through to the existing input loader.
 
 - --conf-thres: Confidence threshold (default 0.6).
 
@@ -107,10 +116,52 @@ Key Arguments
 
 (Training Note: If you wish to learn how to train the YOLOv5-OBB model yourself, please refer to the original repository and tutorial: https://github.com/hukaixuan19970627/yolov5_obb)
 
+### Portable inference paths
+
+For `detect.py`, `detect_norfair_optimize.py`, and `detect_norfair_optimize_elec_time.py`, built-in model paths, the default sample video, and default output directories are resolved from the location of `shrimp_OBB/`, using `Path(__file__).resolve()`. Moving the repository does not require editing these paths. After supplying the missing models, you can also run from the repository root:
+
+```bash
+python shrimp_OBB/detect_norfair_optimize.py
+```
+
+Paths explicitly supplied through `--weights`, `--source`, and `--project` retain their normal behavior: relative filesystem paths are relative to your current working directory, while absolute paths are used as supplied. Camera IDs, URLs, and globs are passed through unchanged. For example, from the repository root:
+
+```bash
+python shrimp_OBB/detect_norfair_optimize.py --source shrimp_OBB/shrimp_video/2024-01-01-00_11_15.mp4 --project results
+```
+
+The `--project` option controls the annotated inference results. Auxiliary CSV, turbid-video, and shrimp-only-video outputs remain under `shrimp_OBB/` as documented below. The research/calibration scripts and upstream DOTA helper examples have their own path settings; this inference path convention does not change those scripts.
+
+### What is `bottom_shrimp.yaml`?
+
+`train.py` refers to `data/bottom_shrimp.yaml`, but the original dataset configuration and DOTA annotations are not included in this repository. A YAML dataset configuration is a small text file describing the dataset root (`path`), image splits (`train`, `val`, optionally `test`), class count (`nc`), and class names (`names`). It contains neither the images nor their bounding-box annotations, and is not a trained model.
+
+`data/bottom_shrimp.example.yaml` is a new single-class **example**, not the original study configuration. Copy it to `data/bottom_shrimp.yaml` and adapt the paths and class names to your own dataset. The existing training loader resolves its dataset `path` relative to the **working directory**, so run training from `shrimp_OBB/` when using this example and pass `--data data/bottom_shrimp.yaml`. External datasets may also use an absolute `path` of your choice. The upstream training environment, model configuration, and hyperparameters must be prepared separately.
+
+The example expects this layout under `shrimp_OBB/`:
+
+```text
+dataset/bottom_shrimp/
+├── train/
+│   ├── images/       # e.g. shrimp_001.jpg
+│   └── labelTxt/     # matching shrimp_001.txt
+└── val/
+    ├── images/
+    └── labelTxt/
+```
+
+This repository's loader maps each `images/<name>.<extension>` to `labelTxt/<name>.txt`. Each object annotation has ten fields in DOTA format:
+
+```text
+x1 y1 x2 y2 x3 y3 x4 y4 class_name difficulty
+```
+
+The four corners use pixel coordinates; `class_name` must match an entry in `names`. For example, a synthetic annotation could be `10 20 50 20 50 40 10 40 shrimp 0`. Sharing the YAML alone is not sufficient to reproduce training: the matching images, annotations, and original split/settings are also needed.
+
 ---
 
 ## 📊 Outputs
-The system generates structured data and visual results:
+The system generates structured data and visual results. The default locations below are relative to `shrimp_OBB/`:
 
 1. Annotated Video:
 
@@ -139,7 +190,7 @@ The system generates structured data and visual results:
 ---
 
 ## 📝 Technical Notes
-- Regression Logic: The mapping from pixels to grams is handled inside utils/plots.py. Ensure the path to the .pkl files in the Model/ directory is correct relative to the execution path.
+- Regression Logic: The mapping from pixels to grams is handled inside `utils/plots.py`. Place the required `.pkl` files in `shrimp_OBB/Model/`; this location is independent of the working directory. The water classifier likewise loads its `.pth` file from `shrimp_OBB/Model/`.
 
 - SIFT ReID: The embedding_distance function in the main script calculates the similarity between the current detection and past tracks using SIFT feature matching.
 
@@ -153,7 +204,8 @@ The `detect_norfair_optimize_elec_time.py` script is a specialized variant of th
 ## 🚀 Usage
 
 ```bash
-   python detect_norfair_optimize_elec_time.py --weights ./runs/train/exp_OBB/weights/best.pt --source ./shrimp_video/2024-01-01-00_11_15.mp4
+   # Run from shrimp_OBB/ after supplying the missing models:
+   python detect_norfair_optimize_elec_time.py
 ```
 ## 📊 System Outputs
 When running this script, you will see detailed performance metrics in two places: the Console Logs and the Generated CSV Reports.

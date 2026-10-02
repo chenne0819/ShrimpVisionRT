@@ -27,7 +27,9 @@ from utils.metrics import fitness
 from utils.rboxs_utils import poly2hbb, poly2rbox, rbox2poly
 import joblib
 
-len_pred_model_path = './Model/final_linear_model_length.pkl'
+# Resolve bundled models relative to shrimp_OBB, independently of the working directory.
+MODEL_DIR = Path(__file__).resolve().parents[1] / 'Model'
+len_pred_model_path = MODEL_DIR / 'final_linear_model_length.pkl'
 len_pred_model = joblib.load(len_pred_model_path)
 # predict Length
 def predict_length(length):    
@@ -42,7 +44,7 @@ def predict_length(length):
 # predict Width
 def predict_width(width):
     # load model
-    model_path = '/home/providence/rotate_yolov5_copy/Model_for_testing/model/final_linear_model_width.pkl'
+    model_path = MODEL_DIR / 'final_linear_model_width.pkl'
     final_model = joblib.load(model_path)
     # print(f"Loaded model from '{model_path}'")
 
@@ -59,7 +61,7 @@ def predict_width(width):
 # predict Weight using pre_length only
 def predict_weight(pred_length):
     # load model
-    model_path = '/home/providence/rotate_yolov5_copy/Model_for_testing/model/polynomial_regression_model_degree3.pkl'
+    model_path = MODEL_DIR / 'polynomial_regression_model_degree3.pkl'
     final_model = joblib.load(model_path)
 
     # input predicted length
@@ -78,7 +80,7 @@ def len_wid_predwei(len, wid):
         X_multi = np.column_stack((len, wid))
 
         # Load model
-        loaded_model = joblib.load('/home/providence/rotate_yolov5_copy/Model_for_testing/model/multi_feature_model.pkl')
+        loaded_model = joblib.load(MODEL_DIR / 'multi_feature_model.pkl')
 
         # Perform prediction
         predictions = loaded_model.predict(X_multi)[0]

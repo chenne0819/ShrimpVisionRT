@@ -1,0 +1,11 @@
+# Single-class example only; not the original study's dataset configuration.
+# Copy to bottom_shrimp.yaml and adapt the paths and class names to your data.
+# The existing training loader resolves `path` relative to the working directory.
+# Run training from shrimp_OBB/ with --data data/bottom_shrimp.yaml.
+# Images and matching DOTA labelTxt/*.txt annotations must be supplied separately.
+path: dataset/bottom_shrimp
+train: train/images
+val: val/images
+# test: test/images  # Optional, if a held-out test split is available.
+nc: 1
+names: [shrimp]  # Must exactly match the class names in your DOTA labels.

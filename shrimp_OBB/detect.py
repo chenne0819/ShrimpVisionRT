@@ -26,7 +26,6 @@ FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
-ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 from models.common import DetectMultiBackend
 from utils.datasets import IMG_FORMATS, VID_FORMATS, LoadImages, LoadStreams
@@ -57,8 +56,8 @@ def crop_rotate_img(img, points):
 
 
 @torch.no_grad()
-def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
-        source=ROOT / 'data/images',  # file/dir/URL/glob, 0 for webcam
+def run(weights=ROOT / 'runs/train/exp_OBB/weights/best.pt',  # model.pt path(s)
+        source=ROOT / 'shrimp_video/2024-01-01-00_11_15.mp4',  # file/dir/URL/glob, 0 for webcam
         imgsz=(640, 640),  # inference size (height, width)
         conf_thres=0.25,  # confidence threshold
         iou_thres=0.45,  # NMS IOU threshold
@@ -186,13 +185,11 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
                 img = im0.copy()
                 # Write results
                 for *poly, conf, cls in reversed(det):
-                    # cv2.imwrite(f'/home/providence/rotate_yolov5_copy/crop_img/img{k}.jpg', img)
                     #points = list()
                     #for num in range(0, 8, 2):
                     #    points.append((poly[num].item(), poly[num+1].item()))
                     # print(points)
                     # cropedImg = crop_rotate_img(img, points)
-                    # cv2.imwrite(f'/home/providence/rotate_yolov5_copy/crop_tail1108/{frame}_{k}.jpg', cropedImg)
                     #k += 1
                     if save_txt:  # Write to file
                         # xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
@@ -252,12 +249,9 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / '/home/providence/rotate_yolov5_copy/runs/train/exp46/weights/best.pt',
+    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'runs/train/exp_OBB/weights/best.pt',
                         help='model path(s)')
-    # parser.add_argument('--source', type=str,
-    #                     default=r'/home/providence/rotate_yolov5/dataset/fft_upset/test/images/',
-    #                     help='file/dir/URL/glob, 0 for webcam')
-    parser.add_argument('--source', type=str, default=r'/home/providence/rotate_yolov5_copy/dataset/bottom_shrimp/test/2023-12-31-01_25_03.mp4',
+    parser.add_argument('--source', type=str, default=ROOT / 'shrimp_video/2024-01-01-00_11_15.mp4',
                         help='file/dir/URL/glob, 0 for webcam')
     parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[640], help='inference size h,w')
     parser.add_argument('--conf-thres', type=float, default=0.1, help='confidence threshold')
@@ -275,7 +269,7 @@ def parse_opt():
     parser.add_argument('--augment', action='store_true', default=False, help='augmented inference')
     parser.add_argument('--visualize', action='store_true', default=False, help='visualize features')
     parser.add_argument('--update', action='store_true', help='update all models')
-    parser.add_argument('--project', default='runs/detect', help='save results to project/name')
+    parser.add_argument('--project', default=ROOT / 'runs/detect', help='save results to project/name')
     parser.add_argument('--name', default='exp', help='save results to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--line-thickness', default=2, type=int, help='bounding box thickness (pixels)')
