@@ -1,0 +1,20 @@
+# OBB training and validation dependencies. Install a matching torch/torchvision
+# build for your CUDA platform first; compile rotated NMS using the upstream guide.
+# Based on hukaixuan19970627/yolov5_obb requirements at b00c3f245e50e7a80460a1b949d22ea7dfeb27a0.
+matplotlib>=3.2.2
+numpy>=1.23.5,<2
+opencv-python>=4.5.4
+Pillow>=8.0
+PyYAML>=5.3.1
+requests>=2.23.0
+scipy>=1.4.1
+torch>=1.13.0
+torchvision>=0.14.0
+tqdm>=4.41.0
+tensorboard>=2.4.1
+pandas>=1.1.4
+seaborn>=0.11.0
+setuptools<81
+# Only needed when running biometric inference with the separately supplied models:
+joblib>=1.0
+scikit-learn>=1.0

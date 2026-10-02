@@ -447,7 +447,7 @@ def run(weights=ROOT / 'runs/train/exp_OBB/weights/best.pt',
                     yolov8_wid = yolov8_wids[j]
                     c = int(cls)
                     label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f}')
-                    annotator.poly_label(poly=poly, width=yolov8_wid, label=label, color=colors(c, True))
+                    annotator.shrimp_label(poly=poly, width=yolov8_wid, label=label, color=colors(c, True))
                     shr_weight = annotator.weight
                     shr_len = annotator.length
                     shr_wid = annotator.width

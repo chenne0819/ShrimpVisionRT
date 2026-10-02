@@ -6,6 +6,7 @@ Plotting utils
 import math
 import os
 from copy import copy
+from functools import lru_cache
 from pathlib import Path
 import random
 from typing import Tuple
@@ -25,12 +26,26 @@ from utils.general import (LOGGER, Timeout, check_requirements, clip_coords, inc
                            try_except, user_config_dir, xywh2xyxy, xyxy2xywh)
 from utils.metrics import fitness
 from utils.rboxs_utils import poly2hbb, poly2rbox, rbox2poly
-import joblib
 
 # Resolve bundled models relative to shrimp_OBB, independently of the working directory.
 MODEL_DIR = Path(__file__).resolve().parents[1] / 'Model'
-len_pred_model_path = MODEL_DIR / 'final_linear_model_length.pkl'
-len_pred_model = joblib.load(len_pred_model_path)
+
+
+@lru_cache(maxsize=4)
+def _load_regression_model(filename):
+    """Load each biometric model only when requested by shrimp inference."""
+    import joblib
+
+    model_path = MODEL_DIR / filename
+    if not model_path.is_file():
+        raise FileNotFoundError(
+            f'Shrimp measurement model not found: {model_path}. '
+            'Place the trained file in shrimp_OBB/Model/ to estimate size/weight. '
+            'OBB detector training and validation do not require these models.'
+        )
+    return joblib.load(model_path)
+
+
 # predict Length
 def predict_length(length):    
     
@@ -38,14 +53,13 @@ def predict_length(length):
     X_input = np.array([[input_length]])
 
     # predict length
-    y_pred = len_pred_model.predict(X_input)[0]
+    y_pred = _load_regression_model('final_linear_model_length.pkl').predict(X_input)[0]
     return y_pred
 
 # predict Width
 def predict_width(width):
     # load model
-    model_path = MODEL_DIR / 'final_linear_model_width.pkl'
-    final_model = joblib.load(model_path)
+    final_model = _load_regression_model('final_linear_model_width.pkl')
     # print(f"Loaded model from '{model_path}'")
 
     # input yolov8_seg shrimp width
@@ -61,8 +75,7 @@ def predict_width(width):
 # predict Weight using pre_length only
 def predict_weight(pred_length):
     # load model
-    model_path = MODEL_DIR / 'polynomial_regression_model_degree3.pkl'
-    final_model = joblib.load(model_path)
+    final_model = _load_regression_model('polynomial_regression_model_degree3.pkl')
 
     # input predicted length
     input_length = float(pred_length)  # EX: 10.5
@@ -80,7 +93,7 @@ def len_wid_predwei(len, wid):
         X_multi = np.column_stack((len, wid))
 
         # Load model
-        loaded_model = joblib.load(MODEL_DIR / 'multi_feature_model.pkl')
+        loaded_model = _load_regression_model('multi_feature_model.pkl')
 
         # Perform prediction
         predictions = loaded_model.predict(X_multi)[0]
@@ -163,9 +176,6 @@ def get_roi(contours: np.ndarray) -> Tuple[slice, ...]:
 
 
 class Annotator:
-    if RANK in (-1, 0):
-        check_font()  # download TTF if necessary
-
     # YOLOv5 Annotator for train/val mosaics and jpgs and detect/hub inference annotations
     def __init__(self, im, line_width=None, font_size=None, font='Arial.ttf', pil=False, example='abc'):
         assert im.data.contiguous, 'Image not contiguous. Apply np.ascontiguousarray(im) to Annotator() input images.'
@@ -190,7 +200,8 @@ class Annotator:
         if self.pil or not is_ascii(label):
             self.draw.rectangle(box, width=self.lw, outline=color)  # box
             if label:
-                w, h = self.font.getsize(label)  # text width, height
+                left, top, right, h = self.font.getbbox(label)
+                w = right - left
                 outside = box[1] - h >= 0  # label fits outside box
                 self.draw.rectangle([box[0],
                                      box[1] - h if outside else box[1],
@@ -293,7 +304,31 @@ class Annotator:
         return out_img
 
 
-    def poly_label(self, poly, width, label='', color=(128, 128, 128), txt_color=(255, 255, 255)):
+    def poly_label(self, poly, label='', color=(128, 128, 128), txt_color=(255, 255, 255)):
+        """Draw a detector annotation without loading any biometric model."""
+        if isinstance(poly, torch.Tensor):
+            poly = poly.detach().cpu().numpy()
+        elif isinstance(poly[0], torch.Tensor):
+            poly = torch.stack(poly).detach().cpu().numpy()
+        points = np.asarray(poly, dtype=np.int32).reshape(4, 2)
+        x, y = points.mean(axis=0).astype(int)
+        if self.pil:
+            self.draw.polygon([tuple(point) for point in points.tolist()], outline=color, width=self.lw)
+            if label:
+                left, top, right, bottom = self.font.getbbox(label)
+                self.draw.rectangle([x, y, x + right - left + 2, y + bottom - top + 2], fill=color)
+                self.draw.text((x - left + 1, y - top + 1), label, fill=txt_color, font=self.font)
+        else:
+            cv2.drawContours(self.im_cv2, [points], -1, color, thickness=self.lw)
+            if label:
+                thickness = max(self.lw - 1, 1)
+                w, h = cv2.getTextSize(label, 0, self.lw / 3, thickness)[0]
+                cv2.rectangle(self.im_cv2, (x, y), (x + w + 1, y + int(1.5 * h)), color, -1, cv2.LINE_AA)
+                cv2.putText(self.im_cv2, label, (x, y + h), 0, self.lw / 3, txt_color,
+                            thickness=thickness, lineType=cv2.LINE_AA)
+
+    def shrimp_label(self, poly, width, label='', color=(128, 128, 128), txt_color=(255, 255, 255)):
+        """Draw a shrimp annotation and estimate its dimensions and weight."""
         if isinstance(poly, torch.Tensor):
             poly = poly.cpu().numpy()
         if isinstance(poly[0], torch.Tensor):
@@ -343,12 +378,12 @@ class Annotator:
 
     def text(self, xy, text, txt_color=(255, 255, 255)):
         # Add text to image (PIL-only)
-        w, h = self.font.getsize(text)  # text width, height
+        left, top, right, h = self.font.getbbox(text)
         self.draw.text((xy[0], xy[1] - h + 1), text, fill=txt_color, font=self.font)
 
     def result(self):
         # Return annotated image as array
-        return np.asarray(self.im_cv2)
+        return np.asarray(self.im if self.pil else self.im_cv2)
 
 
 def feature_visualization(x, module_type, stage, n=32, save_dir=Path('runs/detect/exp')):

@@ -4,6 +4,7 @@ PyTorch utils
 """
 
 import datetime
+import inspect
 import math
 import os
 import platform
@@ -19,6 +20,16 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from utils.general import LOGGER
+
+
+def load_yolo_checkpoint(path, map_location=None):
+    """Load a trusted YOLO checkpoint containing serialized model objects."""
+    # PyTorch 2.6 defaults to weights_only=True, but these legacy checkpoints
+    # include an nn.Module, not just a state_dict. Retain older PyTorch support.
+    kwargs = {'map_location': map_location}
+    if 'weights_only' in inspect.signature(torch.load).parameters:
+        kwargs['weights_only'] = False
+    return torch.load(path, **kwargs)
 
 try:
     import thop  # for FLOPs computation

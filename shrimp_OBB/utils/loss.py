@@ -144,7 +144,6 @@ class ComputeLoss:
             tobj = torch.zeros_like(pi[..., 0], device=device)  # target obj
             n = b.shape[0]  # number of targets
             if n:
-                print(b.shape, a.shape, gj.shape, gi.shape)
                 ps = pi[b, a, gj, gi]  # prediction subset corresponding to targets, (n_targets, self.no)
 
                 # Regression
@@ -256,7 +255,7 @@ class ComputeLoss:
             # Append
             a = t[:, -1].long()
             indices.append(
-                (b, a, gj.clamp_(0, feature_wh[1] - 1), gi.clamp_(0, feature_wh[0] - 1)))  # image, anchor, grid indices
+                (b, a, gj.clamp_(0, p[i].shape[2] - 1), gi.clamp_(0, p[i].shape[3] - 1)))  # image, anchor, grid indices
             tbox.append(torch.cat((gxy - gij, gwh), 1))  # box
             anch.append(anchors[a])  # anchors
             tcls.append(c)  # class

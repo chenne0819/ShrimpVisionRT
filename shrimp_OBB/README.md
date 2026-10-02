@@ -136,7 +136,7 @@ The `--project` option controls the annotated inference results. Auxiliary CSV, 
 
 `train.py` refers to `data/bottom_shrimp.yaml`, but the original dataset configuration and DOTA annotations are not included in this repository. A YAML dataset configuration is a small text file describing the dataset root (`path`), image splits (`train`, `val`, optionally `test`), class count (`nc`), and class names (`names`). It contains neither the images nor their bounding-box annotations, and is not a trained model.
 
-`data/bottom_shrimp.example.yaml` is a new single-class **example**, not the original study configuration. Copy it to `data/bottom_shrimp.yaml` and adapt the paths and class names to your own dataset. The existing training loader resolves its dataset `path` relative to the **working directory**, so run training from `shrimp_OBB/` when using this example and pass `--data data/bottom_shrimp.yaml`. External datasets may also use an absolute `path` of your choice. The upstream training environment, model configuration, and hyperparameters must be prepared separately.
+`data/bottom_shrimp.example.yaml` is a new single-class **example**, not the original study configuration. Copy it to `data/bottom_shrimp.yaml` and adapt the paths and class names to your own dataset. The existing training loader resolves its dataset `path` relative to the **working directory**, so run training from `shrimp_OBB/` when using this example and pass `--data data/bottom_shrimp.yaml`. External datasets may also use an absolute `path` of your choice.
 
 The example expects this layout under `shrimp_OBB/`:
 
@@ -157,6 +157,63 @@ x1 y1 x2 y2 x3 y3 x4 y4 class_name difficulty
 ```
 
 The four corners use pixel coordinates; `class_name` must match an entry in `names`. For example, a synthetic annotation could be `10 20 50 20 50 40 10 40 shrimp 0`. Sharing the YAML alone is not sufficient to reproduce training: the matching images, annotations, and original split/settings are also needed.
+
+### Train an OBB detector on your own data
+
+Use the original [YOLOv5-OBB installation guide](https://github.com/hukaixuan19970627/yolov5_obb/blob/master/docs/install.md) and [training instructions](https://github.com/hukaixuan19970627/yolov5_obb/blob/master/docs/GetStart.md) to prepare a matching PyTorch/CUDA environment. In particular, rotated NMS requires a compiled extension. This repository contains its Python wrapper and build script, but not the C++/CUDA sources; obtain `utils/nms_rotated/src/` from the upstream project and follow its build instructions for your platform before running training. Python package installation alone does not build that extension.
+
+From the repository root, enter the detector directory and install its Python dependencies:
+
+```bash
+cd shrimp_OBB
+python -m pip install -r requirements.txt
+```
+
+Copy the example to the exact filename used by the training command:
+
+```bash
+# Linux/macOS
+cp data/bottom_shrimp.example.yaml data/bottom_shrimp.yaml
+```
+
+```powershell
+# Windows PowerShell
+Copy-Item data/bottom_shrimp.example.yaml data/bottom_shrimp.yaml
+```
+
+Edit the new `data/bottom_shrimp.yaml`: set `path`, `train`, and `val` to your own image directories, and set `nc` and `names` to match your DOTA annotations. Prepare the matching `labelTxt/` directories shown above. The current training defaults treat the dataset as a single shrimp class.
+
+The repository now includes `data/hyps/obb/hyp.finetune_dota.yaml` from upstream commit `b00c3f245e50e7a80460a1b949d22ea7dfeb27a0`. These are **upstream starting hyperparameters**, not a recovered configuration from our shrimp study. Adapt them to your data and camera setup.
+
+For the single-class example, run from `shrimp_OBB/`:
+
+```bash
+python train.py --data data/bottom_shrimp.yaml --hyp data/hyps/obb/hyp.finetune_dota.yaml --weights weight/yolov5n.pt --epochs 100 --batch-size 8 --imgsz 864 --device 0 --name shrimp_custom
+```
+
+The epoch count here is illustrative. Training outputs are saved under `runs/train/shrimp_custom/` (with an incremented suffix if that name already exists). This trains the OBB detector; segmentation, pixel-to-size calibration, weight regression, and water clarity classification are separate models/tasks.
+
+**Initial weights:** if `weight/yolov5n.pt` is absent, the downloader attempts to retrieve it from the official Ultralytics **v6.0** release and creates the `weight/` directory. The release is pinned to match this older codebase instead of following the latest release. These are COCO pretrained weights used to initialize training, not our trained shrimp detector.
+
+If automatic downloading fails, download `yolov5n.pt` from the [official v6.0 release](https://github.com/ultralytics/yolov5/releases/tag/v6.0) and save it as `shrimp_OBB/weight/yolov5n.pt`. From `shrimp_OBB/`, the equivalent commands are:
+
+```bash
+# Linux/macOS
+mkdir -p weight
+curl -L --fail https://github.com/ultralytics/yolov5/releases/download/v6.0/yolov5n.pt -o weight/yolov5n.pt
+```
+
+```powershell
+# Windows PowerShell
+New-Item -ItemType Directory -Force weight
+Invoke-WebRequest https://github.com/ultralytics/yolov5/releases/download/v6.0/yolov5n.pt -OutFile weight/yolov5n.pt
+```
+
+You can also pass the path to a compatible checkpoint with `--weights`. Use trusted checkpoints: legacy YOLO `.pt` files contain serialized Python model objects. Their loader explicitly supports this format, including PyTorch 2.6's changed loading default.
+
+**No biometric checkpoints are needed for OBB training or validation.** Generic polygon/class annotations are separate from shrimp size/weight annotations. The regression models are loaded and cached only when the tracking/measurement pipeline requests a prediction. If a required measurement model is absent, that inference call reports the missing file rather than substituting an estimate.
+
+Component regression tests are in `tests/test_training_setup.py` (run `python -m pytest tests/test_training_setup.py` from the repository root after installing pytest and the dependencies). They cover model-free plotting, cached measurement inference, dataset parsing, weight download routing, and a synthetic OBB optimization step. These tests use a fail-fast stub for the compiled NMS extension; they do not validate rotated NMS, a complete training epoch, or reproduction of the paper's results.
 
 ---
 
